@@ -4,10 +4,10 @@ use std::collections::BTreeMap;
 pub trait Config:crate::system::Config{
     type content:Debug+Ord;
 }
-pub enum Call<T: Config> {
+/*pub enum Call<T: Config> {
 	CreateClaim { content: T::content },
 	RevokeClaim { content: T::content },
-}
+}*/
 #[derive(Debug)]
 pub struct Pallet<T:Config> {
     claims: BTreeMap<T::content, T::AccountId>,
@@ -22,6 +22,10 @@ impl<T:Config> Pallet<T> {
         //unimplemented!()
         self.claims.get(&content)
     }
+}
+#[macros::call]
+impl<T:Config> Pallet<T> {
+    
     pub fn create_claim(&mut self, caller: T::AccountId, content: T::content) -> DispatchResult {
        if self.claims.contains_key(&content){
         return Err("Claim already exists");
@@ -39,7 +43,7 @@ impl<T:Config> Pallet<T> {
         Ok(())
     }
 }
-impl<T:Config> crate::support::Dispatch for Pallet<T> {
+/*impl<T:Config> crate::support::Dispatch for Pallet<T> {
     type Caller = T::AccountId;
     type Call = Call<T>;
     fn dispatch(&mut self, caller: Self::Caller, call: Self::Call) -> crate::support::DispatchResult {
@@ -54,7 +58,7 @@ impl<T:Config> crate::support::Dispatch for Pallet<T> {
         }
         Ok(())
     }
-}
+}*/
 #[cfg(test)]
 mod tests {
     use crate::proof_of_existence;
