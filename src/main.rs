@@ -1,9 +1,11 @@
 mod balances;
 mod system;
 mod support;
+mod proof_of_existence;
 use crate::support::Dispatch;
 enum RuntimeCall {
     Balances(balances::Call<Runtime>),
+    ProofOfExistence(proof_of_existence::Call<Runtime>),
     //BalancesTransfer { to: types::AccountId, amount: types::Balance },
 }
 mod types {
@@ -14,11 +16,13 @@ mod types {
     pub type Extrinsic=crate::support::Extrinsic<AccountId,crate::RuntimeCall>;
     pub type Header=crate::support::Header<BlockNumber>;
     pub type Block=crate::support::Block<Header,Extrinsic>;
+    pub type Content = String;
 }
 #[derive(Debug)]
 struct Runtime {
     system: system::Pallet<Self>,
     balances: balances::Pallet::<Self>,
+    proof_of_existence: proof_of_existence::Pallet::<Self>,
 }
 impl system::Config for Runtime {
 	type AccountId = types::AccountId;
@@ -28,9 +32,12 @@ impl system::Config for Runtime {
 impl balances::Config for Runtime {
 	type Balance = types::Balance;
 }
+impl proof_of_existence::Config for Runtime {
+	type content = types::Content;
+}
 impl Runtime {
     pub fn new() -> Self {
-        Self { system: system::Pallet::new(), balances: balances::Pallet::new() }
+        Self { system: system::Pallet::new(), balances: balances::Pallet::new(), proof_of_existence: proof_of_existence::Pallet::new() }
     }
     pub fn execute_block(&mut self, block: types::Block) -> crate::support::DispatchResult {
         self.system.inc_block_number();
@@ -53,11 +60,15 @@ impl Dispatch for Runtime {
     fn dispatch(&mut self, caller: Self::Caller, runtime_call: Self::Call) -> crate::support::DispatchResult {
         match runtime_call {
             RuntimeCall::Balances(call) => {
-                match call {
+                /*match call {
                     balances::Call::Transfer { to, amount } => {
                         self.balances.transfer(&caller, &to, amount)?;
                     }
-                }
+                }*/
+                self.balances.dispatch(caller, call)?;
+            }
+            RuntimeCall::ProofOfExistence(call) => {
+                self.proof_of_existence.dispatch(caller, call)?;
             }
         }
         Ok(())
@@ -73,5 +84,21 @@ fn main() {
             types::Extrinsic { caller: "bob".to_string(), call: RuntimeCall::Balances(balances::Call::Transfer { to: "charlie".to_string(), amount: 20 }) },
         ],
     };
+    let block_2 = types::Block {
+        header: types::Header { block_number: 2 },
+        extrinsic: vec![
+            types::Extrinsic { caller: "alice".to_string(), call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim { content: "Hello, world!".to_string() }) },
+            types::Extrinsic { caller: "bob".to_string(), call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim { content: "Hello, world!".to_string() }) },
+        ],
+    };
+    let block_3 = types::Block {
+        header: types::Header { block_number: 3 },
+        extrinsic: vec![
+            types::Extrinsic { caller: "alice".to_string(), call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::RevokeClaim { content: "Hello, world!".to_string() }) },
+            types::Extrinsic { caller: "bob".to_string(), call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::RevokeClaim { content: "Hello, world!".to_string() }) },
+        ],
+    };
     runtime.execute_block(block_1).unwrap();
+    runtime.execute_block(block_2).unwrap();
+    runtime.execute_block(block_3).unwrap();
 }
